@@ -1,0 +1,36 @@
+TODO ADDONS
+===========
+
+Modified:
+    => view
+        The use of t:date is deprecated, the code has been modifed to support new tasks format
+        (Example: 2012-02-09 develop addons +TODO @addons)
+        
+New addons:
+    => addons
+        List the installed addons / shows the mode of usage or help of the installed addons
+        
+    => archy
+        Archive past years done tasks, each year has a done file (ex: done_2011.txt), and get a most clear done.txt file
+        
+    => delm
+        Delete multiple tasks (like del but for so mutch tasks)
+        
+    => duration *
+        Shows the durations of the done tasks (diff due date to date creation)
+        You can display formatted result with -o option
+        Or can print CSV format to export to a file with -e option
+        
+    => lsd
+        List only done Tasks
+        
+    => stats *
+        Show statistics of the tasks, by project and context, by project only, by context only, free tasks (no project and no context)
+        
+    => tree *
+        Design the tree of the taks, by project and context, by project only, by context only, free tasks (no project and no context)
+        
+
+* All developed addons are useful, but these are excelent to project management
+        
+        

@@ -1,0 +1,50 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-03
+
+shift
+action=$1
+
+# Help
+if [ "$action" = "usage" ]; then
+    echo "List of the instaled addons:"
+    echo "   addons usage"
+    echo "      shows the mode of usage / help"
+    echo "   addons"
+    echo "      list all addons installed"
+    echo "   addons -h"
+    echo "      shows the mode of usage / help of the installed addons"
+    echo ""
+    exit
+
+# List all addons installed
+elif [ -z "$action" ]; then
+    
+    addons=$(ls $TODO_ACTIONS_DIR | grep -v 'py')
+    echo "AddOns Installed:"
+    echo ""
+    for addon in $addons
+	    do
+	    echo "   $addon"
+    done
+    echo ""
+
+elif [ "$action" = "-h" ]; then
+    addons=$(ls $TODO_ACTIONS_DIR | grep -v 'py')
+    echo "AddOns Installed:"
+    echo ""
+    for addon in $addons
+    do
+        echo -e "\e[38;5;203m $addon \e[0m"
+        if [ "$addon" = "view" ]; then
+    	    "$TODO_SH" "$addon"  help
+    	else
+	        "$TODO_SH" "$addon"  usage
+	    fi
+    done
+    echo ""
+fi
+

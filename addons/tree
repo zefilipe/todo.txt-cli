@@ -1,0 +1,169 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-08
+
+# Colors used in the output
+declare -A COLORS
+COLORS=(["red"]="\033[38;5;203m" ["green"]="\\033[38;5;121m" ["blue"]="\033[38;5;111m" ["brown"]="\033[38;5;179m")
+
+shift
+action=$1
+
+if [ "$action" = "usage" ]; then
+    echo "Tree of the tasks:"
+    echo "   tree usage"
+    echo "      mode of usage / help"
+    echo "   tree [TERM...]"
+    echo "      Design the tree of the taks by the specified terms"
+    echo ""
+    exit
+fi
+
+
+# Creating a temporary file with todo and done tasks
+cat $TODO_FILE > $TODO_DIR/tree_temp
+cat $DONE_FILE >> $TODO_DIR/tree_temp
+
+
+# Filtering terms
+if [ "$#" > 0 ]; then
+    terms=$@
+    for term in $terms; do
+        cat $TODO_DIR/tree_temp | grep $term > $TODO_DIR/tree_temp2
+        cat $TODO_DIR/tree_temp2 > $TODO_DIR/tree_temp
+    done        
+fi
+
+
+# Inicialization of vars
+declare -A contexts
+projects=()
+contexts=()
+
+
+# Get the projects
+projects=$(cat $TODO_DIR/tree_temp | grep -o '+[a-zA-Z0-9_]\+' | sed 's/\+\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+for proj in $projects; do # for each project
+    echo -e ${COLORS["blue"]}" $proj \033[0m"
+    
+    # Get contexts of this project
+    contexts[$proj]=$(cat $TODO_DIR/tree_temp | grep "+$proj" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+    
+    for cont in ${contexts[$proj]}; do # for each context
+        echo -e "\t"${COLORS["brown"]}" $cont \033[0m"
+        
+        ###### Tasks with project and context #####
+        
+        # get the tasks, and trim project, context and dates
+        tasks=$(cat $TODO_DIR/tree_temp | grep "+$proj" | grep "@$cont" | sed 's/\(.*\)\(\+[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\(\@[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+        
+        IFS=$(echo -en "\n\r")
+        for task in $tasks; do 
+             
+            # Color to use
+            color=""
+            if [ ${task:0:1} = "x" ]; then # done
+                color=${COLORS["green"]}
+                task=${task:2:${#task}}
+            else # todo
+                color=${COLORS["red"]}                
+            fi
+            
+            # trim left whitespaces
+            task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
+             
+            echo -e "\t\t"$color $task"\033[0m"
+        done
+    done
+    
+    
+    ###### Tasks with project and without context  #####
+
+    # get the tasks, and trim project and dates
+    tasks=$(cat $TODO_DIR/tree_temp | grep "+$proj" | grep -v "@[a-zA-Z0-9_]\+" | sed 's/\(.*\)\(\+[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+        
+    IFS=$(echo -en "\n\r")
+    for task in $tasks; do 
+         
+        # Color to use
+        color=""
+        if [ ${task:0:1} = "x" ]; then # done
+            color=${COLORS["green"]}
+            task=${task:2:${#task}}
+        else # todo
+            color=${COLORS["red"]}                
+        fi
+        
+        # trim left whitespaces
+        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
+         
+        echo -e "\t"$color $task"\033[0m"
+    done        
+done
+
+
+contexts=$(cat $TODO_DIR/tree_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+for cont in $contexts; do # for each context
+    echo -e ${COLORS["brown"]}" $cont \033[0m"
+
+    ####### Tasks without project and with context ######
+    
+    # get the tasks, and trim context and dates
+    tasks=$(cat $TODO_DIR/tree_temp | grep -v "+[a-zA-Z0-9_]\+" | grep "@$cont" | sed 's/\(.*\)\(\@[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+        
+    IFS=$(echo -en "\n\r")
+    for task in $tasks; do 
+         
+        # Color to use
+        color=""
+        if [ ${task:0:1} = "x" ]; then # done
+            color=${COLORS["green"]}
+            task=${task:2:${#task}}
+        else # todo
+            color=${COLORS["red"]}                
+        fi
+        
+        # trim left whitespaces
+        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
+         
+        echo -e "\t"$color $task"\033[0m"
+    done       
+
+done
+
+
+####### Tasks without project and context ######
+
+# get the tasks, and trim project and dates
+tasks=$(cat $TODO_DIR/tree_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -v "@[a-zA-Z0-9_]\+" | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+    
+IFS=$(echo -en "\n\r")
+for task in $tasks; do 
+     
+    # Color to use
+    color=""
+    if [ ${task:0:1} = "x" ]; then # done
+        color=${COLORS["green"]}
+        task=${task:2:${#task}}
+    else # todo
+        color=${COLORS["red"]}                
+    fi
+    
+    # trim left whitespaces
+    task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
+     
+    echo -e $color $task"\033[0m"
+done        
+
+echo ""
+
+
+# Removing temporary files
+if [ -e $TODO_DIR/tree_temp2 ]; then
+    rm $TODO_DIR/tree_temp2 
+fi
+rm $TODO_DIR/tree_temp
+

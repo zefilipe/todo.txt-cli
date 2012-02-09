@@ -1,0 +1,56 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-03
+
+
+shift
+action=$1
+
+if [ "$action" = "usage" ]; then
+    echo "Archive past years:"
+    echo "   archy usage"
+    echo "      shows the mode of usage / help"
+    echo "   archy"
+    echo "      archives past years"
+    echo ""
+    exit
+fi
+
+cyear=$(date +%Y) # current year
+
+past_years=$(grep -o 'x [0-9]\{2,4\}-[0-9]\{1,2\}-[0-9]\{1,2\}' $DONE_FILE | sed 's/\(x \)\([0-9]\{2,4\}\)\(.*\)/\2/g' | grep -v $cyear  | sort | uniq)
+
+# verify if have open tasks from past years
+lines_todo=$(grep -v $cyear $TODO_FILE)
+if [ -n "$lines_todo" ]; then
+    echo "Warning: do you have open tasks from past years";
+    echo "         You may be close then before continue"
+    echo ""
+    read -p "Do you want continue ? (y/n) " ans
+
+    if [ "$ans" = "n" ]; then	    
+	exit
+    elif [ "$ans" != "y" ]; then 
+	echo "Opção $ans inválida !"	    
+	exit
+    fi
+fi    
+
+# Copy done tasks from past years to separated files each by year
+for py in $past_years; do
+    
+    done_file_arch="$TODO_DIR/done_$py.txt"
+    grep $py $DONE_FILE > $done_file_arch
+done
+
+# Creates a done file backup
+cp $DONE_FILE "$DONE_FILE.back"
+
+# Clean done past from past years
+grep $cyear $DONE_FILE > $TODO_DIR/tmp
+cat $TODO_DIR/tmp > $DONE_FILE
+rm $TODO_DIR/tmp
+

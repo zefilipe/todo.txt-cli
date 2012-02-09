@@ -1,0 +1,309 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-08
+
+# Colors used in the output
+declare -A COLORS
+COLORS=(["red"]="\033[38;5;203m" ["green"]="\\033[38;5;121m" ["blue"]="\033[38;5;111m" ["brown"]="\033[38;5;179m")
+
+shift
+action=$1
+
+if [ "$action" = "usage" ]; then
+    echo "Statistics of the tasks:"
+    echo "   stats usage"
+    echo "      mode of usage / help"
+    echo "   stats [TERM...]"
+    echo "      Statistics of the taks by the specified terms"
+    echo ""
+    exit
+fi
+
+
+# Creating a temporary file with todo and done tasks
+cat $TODO_FILE > $TODO_DIR/stats_temp
+cat $DONE_FILE >> $TODO_DIR/stats_temp
+
+
+# Filtering terms
+if [ "$#" > 0 ]; then
+    terms=$@
+    for term in $terms; do
+        cat $TODO_DIR/stats_temp | grep $term > $TODO_DIR/stats_temp2
+        cat $TODO_DIR/stats_temp2 > $TODO_DIR/stats_temp
+    done        
+fi
+
+
+# Inicialization of vars
+declare -A contexts
+declare -A ntasks_todo_cont
+declare -A ntasks_done_cont
+declare -A ntasks_todo_proj
+declare -A ntasks_done_proj
+projects=()
+contexts=()
+ntasks_todo_cont=()
+ntasks_done_cont=()
+ntasks_todo_proj=()
+ntasks_done_proj=()
+ntasks_done_free=0
+ntasks_todo_free=0
+ntasks_done_total=0
+ntasks_todo_total=0
+
+# Get the projects
+projects=$(cat $TODO_DIR/stats_temp | grep -o '+[a-zA-Z0-9_]\+' | sed 's/\+\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+for proj in $projects; do # for each project
+    
+    # Initialization of project counts
+    ntasks_done_proj[$proj]=0
+    ntasks_todo_proj[$proj]=0    
+    
+    # Get contexts of this project
+    contexts[$proj]=$(cat $TODO_DIR/stats_temp | grep "+$proj" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+    
+    for cont in ${contexts[$proj]}; do # for each context
+
+        # Initialization of context counts
+        ntasks_done_cont[$cont]=0
+        ntasks_todo_cont[$cont]=0    
+                
+        ###### Tasks with project and context #####
+                
+        # get the tasks, and trim project, context and dates
+        tasks=$(cat $TODO_DIR/stats_temp | grep "+$proj" | grep "@$cont" | sed 's/\(.*\)\(\+[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\(\@[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')        
+        
+        IFS=$(echo -en "\n\r")
+        for task in $tasks; do 
+             
+            # count todo and done tasks
+            if [ ${task:0:1} = "x" ]; then # done
+                let ntasks_done_cont[$cont]=${ntasks_done_cont[$cont]}+1
+            else # todo
+                let ntasks_todo_cont[$cont]=${ntasks_todo_cont[$cont]}+1                
+            fi
+        done  
+                
+        # Sum the context counts to this project counts        
+        let ntasks_done_proj[$proj]=${ntasks_done_proj[$proj]}+${ntasks_done_cont[$cont]}
+        let ntasks_todo_proj[$proj]=${ntasks_todo_proj[$proj]}+${ntasks_todo_cont[$cont]}        
+    done
+    
+    
+    ###### Tasks with project and without context  #####
+
+    # get the tasks, and trim project and dates
+    tasks=$(cat $TODO_DIR/stats_temp | grep "+$proj" | grep -v "@[a-zA-Z0-9_]\+" | sed 's/\(.*\)\(\+[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+        
+    IFS=$(echo -en "\n\r")
+    for task in $tasks; do 
+         
+        # count todo and done tasks
+        color=""
+        if [ ${task:0:1} = "x" ]; then # done
+            let ntasks_done_proj[$proj]=${ntasks_done_proj[$proj]}+1
+        else # todo
+            let ntasks_todo_proj[$proj]=${ntasks_todo_proj[$proj]}+1
+        fi
+    done
+    
+    # Sum the project counts to total
+    let ntasks_done_total=$ntasks_done_total+${ntasks_done_proj[$proj]}
+    let ntasks_todo_total=$ntasks_todo_total+${ntasks_todo_proj[$proj]}
+done
+
+# Print stats
+for proj in $projects; do # for each project
+
+    # Calculate percentages
+    perc=0
+    if [ $((${ntasks_todo_proj[$proj]}+${ntasks_done_proj[$proj]})) -gt 0 ]; then
+        perc=$( echo "(${ntasks_done_proj[$proj]}*100)/(${ntasks_todo_proj[$proj]}+${ntasks_done_proj[$proj]})" | bc -l | cut -d '.' -f1)
+    fi
+
+    # Progress    
+    bars=""
+    nbars=0
+    if [ $perc -gt 0 ]; then
+        let nbars=$perc/10
+        for i in `seq $nbars`; do
+            bars="$bars="
+        done
+    fi
+    let nspaces=10-$nbars
+    for i in `seq $nspaces`; do
+      bars=$bars" "
+    done      
+    
+    echo -e ${COLORS["blue"]}" $proj\t $perc% [$bars] \033[0m (${ntasks_done_proj[$proj]} done, ${ntasks_todo_proj[$proj]} todo tasks)"
+    
+    for cont in ${contexts[$proj]}; do # for each context
+
+        # Calculate percentages
+        perc=0
+        if [ $((${ntasks_todo_cont[$cont]}+${ntasks_done_cont[$cont]})) -gt 0 ]; then
+            perc=$( echo "(${ntasks_done_cont[$cont]}*100)/(${ntasks_todo_cont[$cont]}+${ntasks_done_cont[$cont]})" | bc -l | cut -d '.' -f1)
+        fi
+
+        # Progress
+        bars=""
+        nbars=0
+        if [ $perc -gt 0 ]; then
+            let nbars=$perc/10
+            for i in `seq $nbars`; do
+                bars="$bars="
+            done
+        fi
+        let nspaces=10-$nbars
+        for i in `seq $nspaces`; do
+          bars=$bars" "
+        done      
+    
+        echo -e "\t"${COLORS["brown"]}" $cont\t $perc% [$bars] \033[0m (${ntasks_done_cont[$cont]} done, ${ntasks_todo_cont[$cont]} todo tasks)"
+        
+    done    
+done
+
+ntasks_todo_cont=()
+ntasks_done_cont=()
+contexts=$(cat $TODO_DIR/stats_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
+for cont in $contexts; do # for each context
+
+    # Initialization of context counts
+    ntasks_done_cont[$cont]=0
+    ntasks_todo_cont[$cont]=0
+
+    ####### Tasks without project and with context ######
+    
+    # get the tasks, and trim context and dates
+    tasks=$(cat $TODO_DIR/stats_temp | grep -v "+[a-zA-Z0-9_]\+" | grep "@$cont" | sed 's/\(.*\)\(\@[a-zA-Z0-9_]\+\)\(.*\)/\1\3/g' | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+        
+    IFS=$(echo -en "\n\r")
+    for task in $tasks; do     
+    
+        # count todo and done tasks
+        if [ ${task:0:1} = "x" ]; then # done
+            let ntasks_done_cont[$cont]=${ntasks_done_cont[$cont]}+1
+        else # todo
+            let ntasks_todo_cont[$cont]=${ntasks_todo_cont[$cont]}+1                
+        fi         
+    done
+    
+    # Sum the contexts counts to total
+    let ntasks_done_total=$ntasks_done_total+${ntasks_done_cont[$cont]}
+    let ntasks_todo_total=$ntasks_todo_total+${ntasks_todo_cont[$cont]}
+done
+
+# Print stats
+for cont in $contexts; do # for each context
+
+        # Calculate percentages
+        perc=0
+        if [ $((${ntasks_todo_cont[$cont]}+${ntasks_done_cont[$cont]})) -gt 0 ]; then
+            perc=$( echo "(${ntasks_done_cont[$cont]}*100)/(${ntasks_todo_cont[$cont]}+${ntasks_done_cont[$cont]})" | bc -l | cut -d '.' -f1)
+        fi
+
+        # Progress
+        bars=""
+        nbars=0
+        if [ $perc -gt 0 ]; then
+            let nbars=$perc/10
+            for i in `seq $nbars`; do
+                bars="$bars="
+            done
+        fi
+        let nspaces=10-$nbars
+        for i in `seq $nspaces`; do
+          bars=$bars" "
+        done      
+    
+        echo -e ${COLORS["brown"]}" $cont\t $perc% [$bars] \033[0m (${ntasks_done_cont[$cont]} done, ${ntasks_todo_cont[$cont]} todo tasks)"
+done
+
+
+####### Tasks without project and context ######
+
+# get the tasks, and trim project and dates
+tasks=$(cat $TODO_DIR/stats_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -v "@[a-zA-Z0-9_]\+" | sed 's/\(.*\)\([0-9]\{4\}\-[0-9]\{1,2\}\-[0-9]\{1,2\}\)\(.*\)/\1\3/g')
+    
+nfree=0
+IFS=$(echo -en "\n\r")
+for task in $tasks; do 
+    # count todo and done tasks
+    if [ ${task:0:1} = "x" ]; then # done
+        let ntasks_done_free=$ntasks_done_free+1
+    else # todo
+        let ntasks_todo_free=$ntasks_todo_free+1                
+    fi 
+    
+    let nfree=$nfree+1 
+done        
+
+
+# Sum the free tasks counts to total
+let ntasks_done_total=$ntasks_done_total+$ntasks_done_free
+let ntasks_todo_total=$ntasks_todo_total+$ntasks_todo_free
+
+### Print free stats
+
+# Calculate percentages
+perc=0
+if [ $(($ntasks_todo_free+$ntasks_done_free)) -gt 0 ]; then
+    perc=$( echo "($ntasks_done_free*100)/($ntasks_todo_free+$ntasks_done_free)" | bc -l | cut -d '.' -f1)
+fi
+
+# Progress
+bars=""
+nbars=0
+if [ $perc > 0 ]; then
+    let nbars=$perc/10
+    for i in `seq $nbars`; do
+        bars="$bars="
+    done
+fi
+let nspaces=10-$nbars
+for i in `seq $nspaces`; do
+  bars=$bars" "
+done      
+
+echo -e ${COLORS["green"]}" Free tasks *\t $perc% [$bars] \033[0m ($ntasks_done_free done, $ntasks_todo_free todo tasks)"
+
+### Print total stats
+
+# Calculate percentages
+perc=0
+if [ $(($ntasks_todo_total+$ntasks_done_total)) -gt  0 ]; then
+    perc=$( echo "($ntasks_done_total*100)/($ntasks_todo_total+$ntasks_done_total)" | bc -l | cut -d '.' -f1)
+fi
+
+# Progress
+bars=""
+nbars=0
+if [ $perc -gt 0 ]; then
+    let nbars=$perc/10
+    for i in `seq $nbars`; do
+        bars="$bars="
+    done
+fi
+let nspaces=10-$nbars
+for i in `seq $nspaces`; do
+  bars=$bars" "
+done      
+
+echo -e ${COLORS["red"]}" Total\t $perc% [$bars] \033[0m ($ntasks_done_total done, $ntasks_todo_total todo tasks)"
+
+echo ""
+echo " * Considers Free tasks, any tasks that do not have any associated project or context"
+echo ""
+
+
+# Removing temporary files
+if [ -e $TODO_DIR/stats_temp2 ]; then
+    rm $TODO_DIR/stats_temp2 
+fi
+rm $TODO_DIR/stats_temp
+

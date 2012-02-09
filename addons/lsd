@@ -1,0 +1,22 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-03
+
+shift
+action=$1
+
+if [ "$action" = "usage" ]; then
+    echo "List done tasks:"
+    echo "   lsd usage"
+    echo "      shows the mode of usage / help"
+    echo "   lsd [TERM...]"
+    echo "      List done tasks by the specified terms"
+    echo "      If no any term is specified, list all done tasks"
+    echo ""
+    exit
+fi
+
+"$TODO_SH" command lsa " x " $@

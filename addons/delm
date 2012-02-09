@@ -1,0 +1,68 @@
+#! /bin/bash
+
+# Author : José Filipe Lopes Santos <filipesbim@yahoo.com.br>
+# License: GPL3, http://www.gnu.org/copyleft/gpl.html
+# Version: 1.0
+# Date creation: 2012-02-03
+
+shift
+action=$1
+
+if [ "$action" = "usage" -o -z "$action" ]; then
+    echo " Delete multiple tasks:"
+    echo " delm ITEMS# [TERM]";
+    echo " Items can be like  ITEM#[, ITEM#, ITEM#, ...] or"
+    echo " can be like ITEM#-ITEM#"
+    echo ""
+    exit
+fi
+
+# initialization
+item_start=0
+item_stop=0
+i=0
+items=()
+term=""
+
+# items interval & find the term
+if [[ "$1" =~ ^[0-9]+\-[0-9]+$ ]]; then
+    item_start=$(echo $1 | sed 's/\-[0-9]\+//g')
+    item_stop=$(echo $1 | sed 's/[0-9]\+\-//g')
+
+    for ((v=$item_start;v<=$item_stop;v++))
+    do
+	items[$i]=$v
+	let i=$i+1
+    done
+
+    if [[ "$2" =~ [a-zA-Z]+ ]]; then
+	term=$2	
+    fi
+
+# merge items & find the term
+elif [[ "$1" =~ ^[0-9]+$ ]]; then
+    for arg in $*
+    do
+	if [[ "$arg" =~ ^[0-9]+$ ]]; then
+	    items[$i]=$arg
+	    let i=$i+1
+	elif [[ "$arg" =~ [a-zA-Z]+ ]]; then
+	    term=$arg
+	    break
+	fi
+    done
+
+# invalid usage, show help
+else
+    echo " Delete multiple tasks:"
+    echo " delm ITEMS# [TERM]";
+    echo " Items can be like  ITEM#[, ITEM#, ITEM#, ...] or"
+    echo " can be like ITEM#-ITEM#"
+    echo ""
+fi
+
+# Call back the main script to delete
+for item in ${items[@]}
+do
+    "$TODO_SH" command del "$item" "$term"
+done
