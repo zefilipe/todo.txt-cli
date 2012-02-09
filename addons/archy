@@ -40,10 +40,12 @@ if [ -n "$lines_todo" ]; then
 fi    
 
 # Copy done tasks from past years to separated files each by year
+done_file_arch=$(echo $DONE_FILE | sed 's/\([^\.]\+\)\(.txt\)/\1/g')
+
 for py in $past_years; do
     
-    done_file_arch="$TODO_DIR/done_$py.txt"
-    grep $py $DONE_FILE > $done_file_arch
+    done_file_archy=$done_file_arch"_$py.txt"
+    grep $py $DONE_FILE > $done_file_archy
 done
 
 # Creates a done file backup
