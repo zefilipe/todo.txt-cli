@@ -12,6 +12,8 @@ New addons:
         
     => archy
         Archive past years done tasks, each year has a done file (ex: done_2011.txt), and get a most clear done.txt file
+
+	Fix: support multiple done files (multiple todos)
         
     => delm
         Delete multiple tasks (like del but for so mutch tasks)
