@@ -31,7 +31,8 @@ New addons:
         
     => tree *
         Design the tree of the taks, by project and context, by project only, by context only, free tasks (no project and no context)
-        
+
+	Fix: spaces between due dates and tasks        
 
 * All developed addons are useful, but these are excelent to project management
         

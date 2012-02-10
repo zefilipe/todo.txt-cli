@@ -63,18 +63,17 @@ for proj in $projects; do # for each project
         IFS=$(echo -en "\n\r")
         for task in $tasks; do 
              
-            # Color to use
+            # Color to use & trim left witespaces
             color=""
             if [ ${task:0:1} = "x" ]; then # done
                 color=${COLORS["green"]}
                 task=${task:2:${#task}}
+		        task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
             else # todo
                 color=${COLORS["red"]}                
+        		task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
             fi
             
-            # trim left whitespaces
-            task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
-             
             echo -e "\t\t"$color $task"\033[0m"
         done
     done
@@ -88,18 +87,17 @@ for proj in $projects; do # for each project
     IFS=$(echo -en "\n\r")
     for task in $tasks; do 
          
-        # Color to use
+        # Color to use & trim left whitespaces
         color=""
         if [ ${task:0:1} = "x" ]; then # done
             color=${COLORS["green"]}
             task=${task:2:${#task}}
+            task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
         else # todo
             color=${COLORS["red"]}                
+            task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
         fi
         
-        # trim left whitespaces
-        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
-         
         echo -e "\t"$color $task"\033[0m"
     done        
 done
@@ -117,21 +115,19 @@ for cont in $contexts; do # for each context
     IFS=$(echo -en "\n\r")
     for task in $tasks; do 
          
-        # Color to use
+        # Color to use & trim left whitespaces
         color=""
         if [ ${task:0:1} = "x" ]; then # done
             color=${COLORS["green"]}
             task=${task:2:${#task}}
+            task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
         else # todo
-            color=${COLORS["red"]}                
+            color=${COLORS["red"]}
+            task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')                
         fi
-        
-        # trim left whitespaces
-        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
-         
+                 
         echo -e "\t"$color $task"\033[0m"
     done       
-
 done
 
 
@@ -143,18 +139,17 @@ tasks=$(cat $TODO_DIR/tree_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -v "@[a-zA-Z0
 IFS=$(echo -en "\n\r")
 for task in $tasks; do 
      
-    # Color to use
+    # Color to use & trim left whitespaces
     color=""
     if [ ${task:0:1} = "x" ]; then # done
         color=${COLORS["green"]}
         task=${task:2:${#task}}
+        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
     else # todo
-        color=${COLORS["red"]}                
+        color=${COLORS["red"]}
+        task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')                
     fi
-    
-    # trim left whitespaces
-    task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
-     
+         
     echo -e $color $task"\033[0m"
 done        
 
