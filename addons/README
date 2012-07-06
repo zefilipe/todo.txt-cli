@@ -2,6 +2,8 @@ TODO ADDONS
 ===========
 
 Modified:
+    => tree
+        Added option to export the tree of the tasks to an html or csv file
     => view
         The use of t:date is deprecated, the code has been modifed to support new tasks format
         (Example: 2012-02-09 develop addons +TODO @addons)
