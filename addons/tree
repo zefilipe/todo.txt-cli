@@ -7,7 +7,9 @@
 
 # Colors used in the output
 declare -A COLORS
+declare -A COLORS_HTML
 COLORS=(["red"]="\033[38;5;203m" ["green"]="\\033[38;5;121m" ["blue"]="\033[38;5;111m" ["brown"]="\033[38;5;179m")
+COLORS_HTML=(["red"]="#E50404" ["green"]="#53A053" ["blue"]="#5757A5" ["brown"]="#B2581C")
 
 shift
 action=$1
@@ -16,24 +18,54 @@ if [ "$action" = "usage" ]; then
     echo "Tree of the tasks:"
     echo "   tree usage"
     echo "      mode of usage / help"
-    echo "   tree [TERM...]"
+    echo "   tree [TERM...] [OPTIONS]"
     echo "      Design the tree of the taks by the specified terms"
+    echo "   Options:"
+    echo "      -exp file.(html|csv)   Export the tree of the tasks to an html or csv file"
     echo ""
     exit
 fi
 
+# Default values to export
+export="no"
+file_export="todo_tree_export.html"
+ext_export="html"
+begin_html="<html><head><meta http-equiv='Content-Type' content='text/html; charset=utf-8'><title>Tree of the tasks</title></head><body bgcolor='#ffffff'>"
+end_html="</body></html>"
+delim=";" # delimitador
 
 # Creating a temporary file with todo and done tasks
 cat $TODO_FILE > $TODO_DIR/tree_temp
 cat $DONE_FILE >> $TODO_DIR/tree_temp
 
 
-# Filtering terms
+# Filtering terms / export options
 if [ "$#" > 0 ]; then
     terms=$@
     for term in $terms; do
-        cat $TODO_DIR/tree_temp | grep $term > $TODO_DIR/tree_temp2
-        cat $TODO_DIR/tree_temp2 > $TODO_DIR/tree_temp
+    
+        # get file to export
+        if [ "$export" = "yes" -a ! -z "$term" ]; then
+            
+            if [[ "$term" =~ [^\.]+\.(html|csv) ]]; then
+                
+                file_export=$term
+                ext_export="${term##*.}"                
+            else                        
+                echo "File $term not valid !"
+                export="no"                
+            fi
+            
+        # Found export option        
+        elif [ "$term" = "-exp" ]; then
+            export="yes";
+            
+        # Filtering by terms
+        else
+           
+            cat $TODO_DIR/tree_temp | grep $term > $TODO_DIR/tree_temp2
+            cat $TODO_DIR/tree_temp2 > $TODO_DIR/tree_temp
+        fi
     done        
 fi
 
@@ -43,17 +75,40 @@ declare -A contexts
 projects=()
 contexts=()
 
+# Inicialization of export file
+if [ "$export" = "yes" ]; then
+    file_export="$TODO_DIR/$file_export"
+    if [ "$ext_export" = "html" ]; then
+        echo $begin_html > $file_export
+    elif [ "$ext_export" = "csv" ]; then
+        echo "" > $file_export
+    fi
+fi
 
 # Get the projects
 projects=$(cat $TODO_DIR/tree_temp | grep -o '+[a-zA-Z0-9_]\+' | sed 's/\+\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
 for proj in $projects; do # for each project
     echo -e ${COLORS["blue"]}" $proj \033[0m"
+    if [ "$export" = "yes" ]; then
+        if [ "$ext_export" = "html" ]; then
+            echo "<font color='${COLORS_HTML["blue"]}'>$proj</font><blockquote>" >> $file_export
+        elif [ "$ext_export" = "csv" ]; then
+            echo "$proj$delim$delim" >> $file_export
+        fi
+    fi
     
     # Get contexts of this project
     contexts[$proj]=$(cat $TODO_DIR/tree_temp | grep "+$proj" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
     
     for cont in ${contexts[$proj]}; do # for each context
         echo -e "\t"${COLORS["brown"]}" $cont \033[0m"
+        if [ "$export" = "yes" ]; then
+            if [ "$ext_export" = "html" ]; then
+                echo "<font color='${COLORS_HTML["brown"]}'>$cont</font><blockquote>" >> $file_export
+            elif [ "$ext_export" = "csv" ]; then
+                echo "$delim$cont$delim" >> $file_export
+            fi
+        fi
         
         ###### Tasks with project and context #####
         
@@ -65,17 +120,31 @@ for proj in $projects; do # for each project
              
             # Color to use & trim left witespaces
             color=""
+            color_html=""
             if [ ${task:0:1} = "x" ]; then # done
                 color=${COLORS["green"]}
+                color_html=${COLORS_HTML["green"]}
                 task=${task:2:${#task}}
 		        task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
             else # todo
-                color=${COLORS["red"]}                
+                color=${COLORS["red"]} 
+                color_html=${COLORS_HTML["red"]}               
         		task=$(echo $task | sed 's/\([ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
             fi
             
             echo -e "\t\t"$color $task"\033[0m"
-        done
+            if [ "$export" = "yes" ]; then
+                if [ "$ext_export" = "html" ]; then
+                    echo "<font color='$color_html'>$task</font><br>" >> $file_export
+                elif [ "$ext_export" = "csv" ]; then
+                    echo "$delim$delim$task" >> $file_export
+                fi
+            fi
+            
+        done        
+        if [ "$export" = "yes" -a "$ext_export" = "html" ]; then
+            echo "</blockquote>" >> $file_export
+        fi        
     done
     
     
@@ -91,21 +160,41 @@ for proj in $projects; do # for each project
         color=""
         if [ ${task:0:1} = "x" ]; then # done
             color=${COLORS["green"]}
+            color_html=${COLORS_HTML["green"]}
             task=${task:2:${#task}}
             task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
         else # todo
-            color=${COLORS["red"]}                
+            color=${COLORS["red"]}
+            color_html=${COLORS_HTML["red"]}                
             task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')
         fi
         
         echo -e "\t"$color $task"\033[0m"
+        if [ "$export" = "yes" ]; then
+            if [ "$ext_export" = "html" ]; then
+                echo "<font color='$color_html'>$task</font><br>" >> $file_export
+            elif [ "$ext_export" = "csv" ]; then
+                echo "$delim$task$delim" >> $file_export
+            fi
+        fi        
     done        
+    if [ "$export" = "yes" -a "$ext_export" = "html" ]; then
+        echo "</blockquote>" >> $file_export
+    fi
 done
 
 
 contexts=$(cat $TODO_DIR/tree_temp | grep -v "+[a-zA-Z0-9_]\+" | grep -o '@[a-zA-Z0-9_]\+' | sed 's/\@\([a-zA-Z0-9_]\+\).*/\1/g' | sort | uniq)
 for cont in $contexts; do # for each context
     echo -e ${COLORS["brown"]}" $cont \033[0m"
+    if [ "$export" = "yes" ]; then
+        if [ "$ext_export" = "html" ]; then
+            echo "<font color='${COLORS_HTML["brown"]}'>$cont</font><blockquote>" >> $file_export
+        elif [ "$ext_export" = "csv" ]; then
+            echo "$cont$delim$delim" >> $file_export
+        fi
+    fi
+
 
     ####### Tasks without project and with context ######
     
@@ -119,15 +208,27 @@ for cont in $contexts; do # for each context
         color=""
         if [ ${task:0:1} = "x" ]; then # done
             color=${COLORS["green"]}
+            color_html=${COLORS_HTML["green"]}
             task=${task:2:${#task}}
             task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
         else # todo
             color=${COLORS["red"]}
+            color_html=${COLORS_HTML["red"]}
             task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')                
         fi
                  
         echo -e "\t"$color $task"\033[0m"
+        if [ "$export" = "yes" ]; then
+            if [ "$ext_export" = "html" ]; then
+                echo "<font color='$color_html'>$task</font><br>" >> $file_export
+            elif [ "$ext_export" = "csv" ]; then
+                echo "$delim$task$delim" >> $file_export
+            fi
+        fi        
     done       
+    if [ "$export" = "yes" -a "$ext_export" = "html" ]; then
+        echo "</blockquote>" >> $file_export
+    fi    
 done
 
 
@@ -143,18 +244,29 @@ for task in $tasks; do
     color=""
     if [ ${task:0:1} = "x" ]; then # done
         color=${COLORS["green"]}
+        color_html=${COLORS_HTML["green"]}
         task=${task:2:${#task}}
         task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/ \2/g')
     else # todo
         color=${COLORS["red"]}
+        color_html=${COLORS_HTML["red"]}
         task=$(echo $task | sed 's/\(^[ ]\+\)\([a-zA-Z]\+.*\)/\2/g')                
     fi
          
     echo -e $color $task"\033[0m"
-done        
+    if [ "$export" = "yes" ]; then
+        if [ "$ext_export" = "html" ]; then
+            echo "<font color='$color_html'>$task</font><br>" >> $file_export
+        elif [ "$ext_export" = "csv" ]; then
+            echo "$task$delim$delim" >> $file_export
+        fi
+    fi
+done      
 
 echo ""
-
+if [ "$export" = "yes" -a "$ext_export" = "html" ]; then
+    echo $end_html >> $file_export
+fi
 
 # Removing temporary files
 if [ -e $TODO_DIR/tree_temp2 ]; then
